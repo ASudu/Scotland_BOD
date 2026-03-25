@@ -145,3 +145,18 @@ def plot_cagr_changes(df, location, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
     plt.close(fig)
+
+def save_heatmap(corr_matrix, title, folder, filename):
+    """Save a heatmap of the correlation matrix."""
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+    plt.title(title)
+    plt.tight_layout()
+    fpath = os.path.join(folder, filename)
+    plt.savefig(fpath, dpi=300)
+    plt.close()
+
+def cm_to_pixels(cm, dpi=300):
+    """Convert centimeters to pixels for a given DPI."""
+    inches = cm / 2.54
+    return int(inches * dpi)

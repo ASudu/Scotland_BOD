@@ -3,6 +3,7 @@ import time
 import pandas as pd
 from tqdm import tqdm
 from dotenv import load_dotenv
+from openpyxl.drawing.image import Image
 
 from utils import *
 
@@ -54,8 +55,57 @@ class LocationAnalysis:
         for norm_mode in ["mean", "median", "interval", "base"]:
             gender_df[f"{self.location}_tsq3_{norm_mode}"] = gender_df.apply(lambda row: get_tsq(list(range(2014, 2020)), [row[f"{self.location}_{yr}"] for yr in range(2014, 2020)], q=3, norm_mode=norm_mode), axis=1)
         
-        # Save the analyzed DataFrame
-        save_df(gender_df, SAVE_FOLDER, f"{self.location.lower().replace(" ", "_")}_{gender.lower()}_analysis.csv")
+        # Get correlation matrices for the metrics
+        cols = [f"{self.location}_CAGR_2014", f"{self.location}_CAGR_2017"] + [f"{self.location}_tsq2_{norm_mode}" for norm_mode in ["mean", "median", "interval", "base"]] + [f"{self.location}_tsq3_{norm_mode}" for norm_mode in ["mean", "median", "interval", "base"]]
+
+        corr_pearson = gender_df[cols].corr(method="pearson")
+        corr_spearman = gender_df[cols].corr(method="spearman")
+        corr_kendall = gender_df[cols].corr(method="kendall")
+
+        save_heatmap(corr_pearson, f"Pearson - {self.location}", SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_pearson.png")
+        save_heatmap(corr_spearman, f"Spearman - {self.location}", SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_spearman.png")
+        save_heatmap(corr_kendall, f"Kendall - {self.location}", SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_kendall.png")
+
+        plot_sheets = {
+            f'{gender}_pearson': os.path.join(SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_pearson.png"),
+            f'{gender}_spearman': os.path.join(SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_spearman.png"),
+            f'{gender}_kendall': os.path.join(SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_{gender}_corr_kendall.png"),
+        }
+
+        save_path = os.path.join(SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_analysis.xlsx")
+
+        writer_kwargs = {}
+        if os.path.exists(save_path):
+            # 'if_sheet_exists' is only valid in append ('a') mode
+            writer_kwargs = {'mode': 'a', 'engine': 'openpyxl', 'if_sheet_exists': 'replace'}
+        else:
+            # 'w' mode creates the file from scratch
+            writer_kwargs = {'mode': 'w', 'engine': 'openpyxl'}
+
+        with pd.ExcelWriter(save_path, **writer_kwargs) as writer:
+            gender_df.to_excel(writer, sheet_name=gender, index=False)
+            
+            workbook = writer.book
+            for sheet_name, img_path in plot_sheets.items():
+                if sheet_name not in workbook.sheetnames:
+                    worksheet = workbook.create_sheet(sheet_name)
+                else:
+                    worksheet = workbook[sheet_name]
+                
+                # Dimensions
+                h,w = 18.92, 24.49 # cm
+                
+                img = Image(img_path)
+                img.width = cm_to_pixels(w)
+                img.height = cm_to_pixels(h)
+                worksheet.add_image(img, 'B2')
+        
+        # Once done delete the temporary plot images
+        for img_path in plot_sheets.values():
+            if os.path.exists(img_path):
+                os.remove(img_path)
+
+        return gender_df
 
 
     def analyze_location(self):
@@ -94,7 +144,11 @@ class LocationAnalysis:
         
         for gender_df, gender in zip(tables.values(), tables.keys()):
             if gender != "Both sexes":
-                self.analyze_gender(gender_df, gender)
+                tables[gender] = self.analyze_gender(gender_df, gender)
+        
+        # with pd.ExcelWriter(os.path.join(SAVE_FOLDER, f"{self.location.lower().replace(' ', '_')}_analysis.xlsx")) as writer:
+        #     tables["Male"].to_excel(writer, sheet_name="Male", index=False)
+        #     tables["Female"].to_excel(writer, sheet_name="Female", index=False)
         
         end = time.time()
 
