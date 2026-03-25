@@ -9,6 +9,7 @@ from utils import *
 load_dotenv()  # Load environment variables from .env file
 
 DATA_FOLDER = os.getenv('DATA_FOLDER', 'data')  # Default to 'data' if not set
+SAVE_FOLDER = "../data/"
 
 class LocationAnalysis:
     """Class to perform analysis for a specific location."""
@@ -45,7 +46,7 @@ class LocationAnalysis:
         gender_df[f"{self.location}_inclusion_change"] = gender_df.apply(lambda row: "Yes" if (self.threshold - row[f"{self.location}_CAGR_2014"])*(1 - row[f"{self.location}_CAGR_2017"]) < 0 else "No", axis=1)
 
         # Plot the CAGR changes for causes that changed inclusion
-        plot_cagr_changes(gender_df, self.location)
+        # plot_cagr_changes(gender_df, self.location)
 
         # Calculate all Thiel-Sen slopes for the location and add them to the DataFrame
         for norm_mode in ["mean", "median", "interval", "base"]:
@@ -54,7 +55,7 @@ class LocationAnalysis:
             gender_df[f"{self.location}_tsq3_{norm_mode}"] = gender_df.apply(lambda row: get_tsq(list(range(2014, 2020)), [row[f"{self.location}_{yr}"] for yr in range(2014, 2020)], q=3, norm_mode=norm_mode), axis=1)
         
         # Save the analyzed DataFrame
-        save_df(gender_df, "data", f"{self.location.lower().replace(" ", "_")}_{gender.lower()}_analysis.csv")
+        save_df(gender_df, SAVE_FOLDER, f"{self.location.lower().replace(" ", "_")}_{gender.lower()}_analysis.csv")
 
 
     def analyze_location(self):
@@ -108,4 +109,4 @@ if __name__ == "__main__":
             continue  # Skip Scotland as it's our reference point
         location_analysis = LocationAnalysis(df, location)
         time_taken = location_analysis.analyze_location()
-        print(f"Analysis for {location} completed in {time_taken} seconds.")
+        tqdm.write(f"Analysis for {location} completed in {time_taken} seconds.")

@@ -11,7 +11,7 @@ def load_data(folder, filename):
     df = pd.read_csv(fpath)
 
     for dir in ["North", "East", "West"]:
-        mask = df["Location"].str.contains(dir)
+        mask = df["Location"].str.startswith(dir)
         df.loc[mask, "Location"] = f"{dir} Scotland"
     
     df.to_csv(os.path.join(folder, "sbod_data_cleaned.csv"), index=False)  # Save the cleaned data for future use
